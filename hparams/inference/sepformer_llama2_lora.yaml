@@ -1,0 +1,186 @@
+seed: 1234
+__set_seed: !apply:torch.manual_seed [!ref <seed>]
+np_rng: !new:numpy.random.RandomState [!ref <seed>]
+
+save_folder: !PLACEHOLDER
+analyze: false
+
+# Testing on different cases
+
+case: 2Speech2Audio
+manifest_root: !apply:hparams.configs.get_manifest_path
+    case: !ref <case>
+TaskHandler: !apply:hparams.configs.get_task_handler
+    case: !ref <case>
+special_prompts: !apply:hparams.configs.get_special_prompts
+    case: !ref <case>
+
+# Data
+
+test_pattern: !apply:os.path.join [!ref <manifest_root>, 'test_*k.json']
+test_files: !apply:glob.glob [!ref <test_pattern>]
+filt_labels: null
+filt_labels_mode: both
+
+n_test: 0
+
+prompt_builder: !new:data.datasets.prompt_templates.ShortTemplate
+    acts: ['0', '1', 'D' ,'U']
+    shuffle: true
+    random: true
+    
+prob_gpt_prompt: 1.0
+rand_prompt: true
+rand_tasks: false
+
+ret_src: false
+
+test_set: !new:data.datasets.prompt_mixtures.PromptMixtures
+    manifest_files: !ref <test_files>
+    select_n: !ref <n_test>
+    task_handler: !ref <TaskHandler>
+    rand_tasks: false # depreciated
+    prob_gpt_prompt: 1.0
+    rand_prompt: false
+    prompt_builder: null
+    delta_styles: true
+    special_prompts: !ref <special_prompts>
+    prob_special_prompt: 0.5
+    ret_src: !ref <ret_src>
+    filt_labels: !ref <filt_labels>
+    filt_labels_mode: !ref <filt_labels_mode>
+
+# Loader
+
+test_loader_opts:
+    batch_size: 1
+    num_workers: 1
+    shuffle: false
+
+# Speedup
+
+mix_prec: false
+mix_dtype: !name:torch.bfloat16 # always
+llm_mix_prec: false
+
+# Model
+
+enc_chan: 256
+kernel_size: 16
+kernel_stride: !ref <kernel_size> // 2
+chunk_size: 250
+n_block: 2
+d_ffn: 1024
+n_head: 8
+n_transformer_layer: 8
+
+Encoder: !new:speechbrain.lobes.models.dual_path.Encoder
+    kernel_size: !ref <kernel_size>
+    out_channels: !ref <enc_chan>
+
+SBtfintra: !new:speechbrain.lobes.models.dual_path.SBTransformerBlock
+  num_layers: !ref <n_transformer_layer>
+  d_model: !ref <enc_chan>
+  nhead: !ref <n_head>
+  d_ffn: !ref <d_ffn>
+  dropout: 0
+  use_positional_encoding: true
+  norm_before: true
+
+SBtfinter: !new:speechbrain.lobes.models.dual_path.SBTransformerBlock
+  num_layers: !ref <n_transformer_layer>
+  d_model: !ref <enc_chan>
+  nhead: !ref <n_head>
+  d_ffn: !ref <d_ffn>
+  dropout: 0
+  use_positional_encoding: true
+  norm_before: true
+
+# FiLM
+
+film_mode: 'block'
+film_n_layer: 2
+film_scale: true
+film_where: 'before1x1'
+
+# new!!!
+use_mask: true
+
+MaskNet: !new:modules.dual_path_ext.Dual_Path_Model
+    num_spks: 1 # fixed
+    in_channels: !ref <enc_chan>
+    out_channels: !ref <enc_chan>
+    num_layers: !ref <n_block>
+    K: !ref <chunk_size>
+    intra_model: !ref <SBtfintra>
+    inter_model: !ref <SBtfinter>
+    norm: ln
+    linear_layer_after_inter_intra: false
+    skip_around_intra: true
+    cond_dim: !ref <txt_emb_dim>
+    film_mode: !ref <film_mode>
+    film_n_layer: !ref <film_n_layer>
+    film_scale: !ref <film_scale>
+    analyze: !ref <analyze>
+
+Decoder: !new:speechbrain.lobes.models.dual_path.Decoder
+    in_channels: !ref <enc_chan>
+    out_channels: 1
+    kernel_size: !ref <kernel_size>
+    stride: !ref <kernel_stride>
+    bias: false
+
+txt_emb_dim: 4096
+
+# Text encoder
+
+llm_path: /engram/naplab/shared/LLaMA2/huggingface/Llama-2-7b-chat-hf
+
+tokenizer: !apply:transformers.AutoTokenizer.from_pretrained
+    pretrained_model_name_or_path: !ref <llm_path>
+    add_eos_token: !ref <add_eos>
+
+llm: !apply:transformers.AutoModelForCausalLM.from_pretrained
+    pretrained_model_name_or_path: !ref <llm_path>
+
+add_eos: true 
+
+# LoRA
+
+lora_modules: ['q_proj', 'v_proj']
+lora_r: 16
+lora_alpha: !ref <lora_r>
+lora_dropout: 0.05
+
+lora_config: !new:peft.LoraConfig
+    r: !ref <lora_r>
+    lora_alpha: !ref <lora_alpha>
+    target_modules: !ref <lora_modules>
+    lora_dropout: !ref <lora_dropout>
+    bias: "none"
+
+lora_llm: !apply:peft.get_peft_model
+    model: !ref <llm>
+    peft_config: !ref <lora_config>
+
+# Everything
+
+modules:
+    encoder: !ref <Encoder>
+    decoder: !ref <Decoder>
+    masknet: !ref <MaskNet>
+    lora_llm: !ref <lora_llm>
+
+# Log and save
+
+checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
+    checkpoints_dir: !ref <save_folder>
+    custom_load_hooks:
+        lora_llm: !name:utils.lora_ckpt.load_lora
+    custom_save_hooks:
+        lora_llm: !name:utils.lora_ckpt.save_lora
+    recoverables:
+        encoder: !ref <Encoder>
+        decoder: !ref <Decoder>
+        masknet: !ref <MaskNet>
+        lora_llm: !ref <lora_llm>
