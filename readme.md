@@ -47,4 +47,24 @@ In terminal
 ```text
 pip install -r requirements.txt
 ```
-Then, follow run_LCR.ipynb.
+Then, follow run_LCR.ipynb,
+which does
+1. **Initialize Models**: Setup the ***PromptReader*** and ***SoundRemixer*** using the `modules/` and `hparams/`.
+2. **Load Checkpoint**: Load pre-trained weights (e.g., from `save/pretrain_sepformer_llama2_lora`).
+3. **Input Audio & Text**: Provide a 16 kHz sound mixture and a text prompt.
+4. **Estimate Semantic Filter**: The ***PromptReader*** interprets the text to encode target sources and actions
+5. **Apply Remix Mask**: The ***SoundRemixer*** estimates a mask to scale or remove components in the latent space.
+6. **Decode Output**: The decoder maps the filtered latent back to the remixed waveform.
+
+---
+
+## Citation
+```text
+@article{jiang2025listen,
+  title={Listen, Chat, and Remix: Text-Guided Soundscape Remixing for Enhanced Auditory Experience},
+  author={Jiang, Xilin and Han, Cong and Li, Yinghao Aaron and Mesgarani, Nima},
+  journal={IEEE Journal of Selected Topics in Signal Processing},
+  year={2025},
+  publisher={IEEE}
+}
+```
