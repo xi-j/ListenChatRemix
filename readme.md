@@ -58,6 +58,10 @@ which does
 
 ---
 
+## Checkpoints and Test Data
+
+We provide the Sepformer + LLaMA 2 checkpoint [here](https://drive.google.com/drive/folders/1jHlMbrXmaxkhdfn5QtFRGhjOUgdxEoFj?usp=sharing), along with 2 Speech + 2 Audio mixtures and text prompts for the Target Speech Extraction, Target Audio Extraction, and Multiple Speech/Audio Extraction tasks.
+
 ## Citation
 ```text
 @article{jiang2025listen,
