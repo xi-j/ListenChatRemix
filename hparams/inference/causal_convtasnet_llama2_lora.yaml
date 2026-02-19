@@ -83,7 +83,7 @@ film_where: 'before1x1'
 # new!!!
 use_mask: true
 mask_type: 'relu'
-causal: false
+causal: true
 MaskNet: !new:modules.convtasnet_ext.MaskNet
     N: !ref <enc_chan>
     B: !ref <bot_chan>
