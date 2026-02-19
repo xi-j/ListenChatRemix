@@ -60,7 +60,7 @@ which does
 
 ## Checkpoints and Test Data
 
-We provide the Sepformer + LLaMA 2 (LoRA) and Causal Conv-TasNet + LLaMA 2 (LoRA) checkpoint [here](https://drive.google.com/drive/folders/1jHlMbrXmaxkhdfn5QtFRGhjOUgdxEoFj?usp=sharing), along with 2 Speech + 2 Audio mixtures and text prompts for the Target Speech Extraction, Target Audio Extraction, and Multiple Speech/Audio Extraction tasks.
+We provide Sepformer + LLaMA 2 and Causal Conv-TasNet + LLaMA 2 checkpoint [here](https://drive.google.com/drive/folders/1jHlMbrXmaxkhdfn5QtFRGhjOUgdxEoFj?usp=sharing), along with 2 Speech + 2 Audio mixtures and text prompts for the Target Speech Extraction, Target Audio Extraction, and Multiple Speech/Audio Extraction tasks.
 
 ## Citation
 ```text
